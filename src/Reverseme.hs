@@ -20,6 +20,9 @@ import qualified Data.ByteString.Lazy.Char8 as BSL
 	λ> let (Just r) = decode (BS.pack jsVHost) :: Maybe Vhost
 	λ> r
 	Vhost {name = "gsp2-prod", containers = [Container (fromList [("10.226.150.12","9001")]),Container (fromList [("10.226.150.12","9002")]),Container (fromList [("10.226.150.12","9003")])]}
+
+	{"name":"google-v1.0","env":"prod","user":"111117","containers":[{"ip":"10.226.150.12","port":9001},{"ip":"173.194.40.120","port":80}]}
+	http://127.0.0.1:8000/append/{"name":"google-v1.0","env":"prod","user":"111117","containers":[{"ip":"10.226.150.12","port":9001},{"ip":"173.194.40.120","port":80}]}
 --}
 jsVHost :: String
 jsVHost = "{\"name\":\"google-v1.0\",\"env\":\"prod\",\"user\":\"111117\",\"containers\":[{\"ip\":\"10.226.150.12\",\"port\":9001}, {\"ip\":\"173.194.40.120\",\"port\":80}]}"
@@ -56,8 +59,8 @@ instance FromJSON Vhost where
 		<*> v .: "containers" 
 
 {--------------------------------------------------------------------------------------------------------------}
-writeNginxConf :: IO ()
-writeNginxConf = do
+writeNginxConf :: String -> IO ()
+writeNginxConf json = do
 	nginxSiteEnableFS <- safeFileStatus nginxConfigDir
 	nginxVHostFS <- safeFileStatus vhFileName
 	case nginxSiteEnableFS of
@@ -81,7 +84,7 @@ writeNginxConf = do
 	--putStrLn $ makeNginxVhost vh
 	liftIO $ writeFile "/tmp/log-rme.txt" $ makeNginxVhost vh
 	where
-		(Just vh) = decode (BSL.pack jsVHost) :: Maybe Vhost
+		(Just vh) = decode (BSL.pack json) :: Maybe Vhost
 		nginxConfigDir = "/etc/nginx/sites-enabled/" 
 		vhFileName = nginxConfigDir ++ name vh ++ "-" ++ env vh
 
