@@ -74,7 +74,6 @@ writeNginxConf json = do
 			else
 				liftIO $ writeFile "/tmp/log" "error"
 		Nothing -> liftIO $ writeFile "/tmp/log" "error"
-	--putStrLn $ makeNginxVhost vh
 	liftIO $ writeFile "/tmp/log-rme.txt" $ makeNginxVhost vh
 	where
 		(Just vh) = decode (BSL.pack json) :: Maybe Vhost
