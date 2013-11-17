@@ -71,13 +71,6 @@ writeNginxConf json = do
 						liftIO $ writeFile vhFileName (makeNginxVhost vh)
 						liftIO $ writeFile "/tmp/log" "config ok ..."
 						liftIO $ rawSystem "/etc/init.d/nginx" ["reload"] >> return ()
-						-- faire un test de nginx (nginx -t) puis echo $? si 1 alors le nginx est corompu si $? == 0 alors ok
-						-- idem pour /etc/init.d/nginx restart
-						-- pourquoi ne pas faire un reloadnginix en bash qui check ca (plus simple)
-						-- nginx -t 2&>1 /dev/null
-						-- if $? != 0 alors stop puis return echo 1 else relaod nginx :
-						-- /etc/init.d/nginx restart 2&>1 /dev/null
-						-- puis echo $?
 			else
 				liftIO $ writeFile "/tmp/log" "error"
 		Nothing -> liftIO $ writeFile "/tmp/log" "error"
