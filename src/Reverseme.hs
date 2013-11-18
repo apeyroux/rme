@@ -7,6 +7,7 @@ import System.IO
 import System.Posix.Files
 import Control.Exception
 import System.Cmd (rawSystem)
+import System.Directory
 -- import Data.Map (Map)
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.IO.Class (liftIO)
@@ -58,19 +59,37 @@ instance FromJSON Vhost where
 		<*> v .: "user"
 		<*> v .: "containers" 
 
-{--------------------------------------------------------------------------------------------------------------}
-writeNginxConf :: String -> IO ()
-writeNginxConf json = do
+removeNginxVhost :: String -> IO ()
+removeNginxVhost json = do
+		liftIO $ removeFile vhFileName
+	where
+		(Just vh) = decode (BSL.pack json) :: Maybe Vhost
+		nginxConfigDir = "/etc/nginx/sites-enabled/" 
+		vhFileName = nginxConfigDir ++ name vh ++ "-" ++ env vh
+
+appendNginxVhost :: String -> IO ()
+appendNginxVhost json = do
 	nginxSiteEnableFS <- safeFileStatus nginxConfigDir
 	nginxVHostFS <- safeFileStatus vhFileName
 	case nginxSiteEnableFS of
 		Just x -> if isDirectory x then
 				case nginxVHostFS of
+					{-- si le fichier existe déjà ne rien faire 
 					Just x -> liftIO $ writeFile "/tmp/log" "error"
 					Nothing -> do 
 						liftIO $ writeFile vhFileName (makeNginxVhost vh)
 						liftIO $ writeFile "/tmp/log" "config ok ..."
+						liftIO $ rawSystem "/etc/init.d/nginx" ["reload"] >> return () --}
+					{-- ecraser l'ancienne config --}
+					Just x -> do
+						liftIO $ writeFile "/tmp/log" "ecraser fichier"
+						liftIO $ writeFile vhFileName (makeNginxVhost vh)
+						liftIO $ writeFile "/tmp/log" "config ok ..."
 						liftIO $ rawSystem "/etc/init.d/nginx" ["reload"] >> return ()
+					Nothing -> do
+						liftIO $ writeFile "/tmp/log" "ecraser fichier"
+						liftIO $ writeFile vhFileName (makeNginxVhost vh)
+						liftIO $ writeFile "/tmp/log" "config ok ..."
 			else
 				liftIO $ writeFile "/tmp/log" "error"
 		Nothing -> liftIO $ writeFile "/tmp/log" "error"
