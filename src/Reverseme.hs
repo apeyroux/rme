@@ -3,8 +3,14 @@
 module Reverseme where
 
 import Data.Aeson
+import System.Directory
+import System.Posix.Files
+import System.FilePath.Posix
+import System.Cmd (rawSystem)
+import Control.Monad.IO.Class (liftIO)
+import Control.Exception (SomeException, handle)
 import Control.Applicative ((<$>), (<*>))
-import qualified Data.ByteString.Lazy.Char8 as C
+import qualified Data.ByteString.Lazy.Char8 as BS
 
 data CInterface = CInterface {
 	ciIp :: String,
@@ -48,10 +54,11 @@ data NginxVhost = NginxVhost {
 } deriving (Eq)
 
 instance ToJSON NginxVhost where
-	toJSON (NginxVhost a n t c) = object ["author" .= a,
-	"name" .= n,
-	"type" .= t,
-	"containers" .= c]
+	toJSON (NginxVhost a n t c) = object [
+		"author" .= a,
+		"name" .= n,
+		"type" .= t,
+		"containers" .= c]
 
 instance FromJSON NginxVhost where
 	parseJSON (Object v) = 
@@ -73,17 +80,53 @@ instance Show NginxVhost where
 		"\t\trewrite /(.*) /$1 break;",
 		"\t\tproxy_pass http://" ++ vhname ++ "_backend;",
 		"\t}\n}"]
-	where
-		vhname = n ++ "-" ++ t
+		where
+			vhname = n ++ "-" ++ t
 
-main :: IO ()
-main = do
-	putStrLn "---"
-	putStrLn $ show nginxVhost
-	putStrLn "---"
-	C.putStrLn $ encode nginxVhost
-	putStrLn "---"
-	--C.putStrLn $ encode (Container "gsp2" (CInterface "127.0.0.1" 80))
-	--C.putStrLn $ show (NginxVhost "111117" "gsp2-0.1" "Dev" [])
+data NginxConfiguration = NginxConfiguration {
+	ngcVHostPath :: FilePath,
+	ngcInetdBinPath :: String
+} deriving (Eq, Show)
+
+-- rawSystem (read (ngcInetdBinPath c)) ["reload"]
+ngxReload c = liftIO $ rawSystem "service" ["nginx","reload"] >> return ()
+
+ngxGetDirectory :: NginxVhost -> String
+ngxGetDirectory v = vhName v ++ "-" ++ vhType v
+
+ngxWriteVHost :: NginxConfiguration -> NginxVhost -> IO ()
+ngxWriteVHost c v = writeFile vhFilePath $ show v
 	where
-		nginxVhost = NginxVhost "111117" "gsp2-0.1" "dev" [(Container "gsp2" (CInterface "127.0.0.1" 8080))]
+		vhFilePath = ngcVHostPath c </> ngxGetDirectory v
+
+ngxDropVHost :: NginxConfiguration -> NginxVhost -> IO ()
+ngxDropVHost c v = removeFile vhFilePath
+	where
+		vhFileName = vhName v ++ "-" ++ vhType v
+		vhFilePath = ngcVHostPath c </> vhFileName
+
+exceptionMain :: SomeException -> IO()
+exceptionMain ex = putStrLn $ "Ya comme une merde ! : " ++ show ex
+
+{--
+main :: IO ()
+main = handle exceptionMain $ do
+	putStrLn "# ---\n# vhost auto configuration\n#---"
+	putStr "# json : "
+	BS.putStrLn $ encode nginxVhost
+	--C.putStrLn $ encode nginxVhostFailed
+	putStrLn "# ---"
+	putStrLn $ show nginxVhost
+	--putStrLn $ show nginxVhostFailed
+	putStrLn "# --- end auto configuration"
+	putStrLn "# write file conf"
+	ngxWriteVHost nginxConfig nginxVhost
+	--ngxWriteVHost nginxConfig nginxVhostFailed
+	putStrLn "# reload nginx"
+	ngxReload nginxConfig
+	putStrLn "# ---"
+	where
+		nginxVhost = NginxVhost "111117" "gsp2-2.1.4" "dev" [(Container "gsp2" (CInterface "127.0.0.1" 8080))]
+		nginxConfig = NginxConfiguration "/tmp/" "/etc/init.d/nginx"
+		(Just nginxVhostFailed) = decode "{\"name\":\"Joe\",\"age\":12}" :: Maybe NginxVhost
+		--}
