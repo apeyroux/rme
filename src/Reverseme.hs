@@ -49,9 +49,9 @@ data NginxVhost = NginxVhost {
 
 instance ToJSON NginxVhost where
 	toJSON (NginxVhost a n t c) = object ["author" .= a,
-										  "name" .= n,
-										  "type" .= t,
-										  "containers" .= c]
+	"name" .= n,
+	"type" .= t,
+	"containers" .= c]
 
 instance FromJSON NginxVhost where
 	parseJSON (Object v) = 
@@ -63,18 +63,18 @@ instance FromJSON NginxVhost where
 
 instance Show NginxVhost where
 	show (NginxVhost a n t c) = unlines ["# Author: " ++ a ++ "\n",
-								"upstream " ++ vhname ++ "_backend {",
-								unlines (map (\x -> "\tserver " ++ show x ++ " max_fails=3 fail_timeout=30s;") c), -- crado voir fmap
-								"}\n\nserver {",
-								"\tlocation /" ++ vhname ++ "{",
-    							"\t\tproxy_set_header Host $host;",
-    							"\t\tproxy_set_header X-Real-IP $remote_addr;",
-    							"\t\tproxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
-								"\t\trewrite /(.*) /$1 break;",
-								"\t\tproxy_pass http://" ++ vhname ++ "_backend;",
-								"\t}\n}"]
-							where
-								vhname = n ++ "-" ++ t
+		"upstream " ++ vhname ++ "_backend {",
+		unlines (map (\x -> "\tserver " ++ show x ++ " max_fails=3 fail_timeout=30s;") c), -- crado voir fmap
+		"}\n\nserver {",
+		"\tlocation /" ++ vhname ++ "{",
+		"\t\tproxy_set_header Host $host;",
+		"\t\tproxy_set_header X-Real-IP $remote_addr;",
+		"\t\tproxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;",
+		"\t\trewrite /(.*) /$1 break;",
+		"\t\tproxy_pass http://" ++ vhname ++ "_backend;",
+		"\t}\n}"]
+	where
+		vhname = n ++ "-" ++ t
 
 main :: IO ()
 main = do
