@@ -4,12 +4,17 @@ module Main where
 
 import           Control.Applicative
 import           Snap.Core
-import           Snap.Util.FileServe
 import           Snap.Http.Server
+import           Snap.Util.FileServe
+import Prelude hiding (catch)
+import qualified Control.Exception as C
 
-import qualified Data.ByteString.Char8 as BS
+-- import           Control.Exception.Lifted (handle)
+-- import           Control.Exception      (SomeException)
+-- import Control.Monad.CatchIO
+import Control.Exception.Base
 import Control.Monad.IO.Class (liftIO)
-import Control.Exception (SomeException)
+import qualified Data.ByteString.Char8  as BS
 import Reverseme
 
 main :: IO ()
@@ -24,23 +29,23 @@ site =
           ] <|>
     dir "static" (serveDirectory ".")
 
+exceptionCfg :: SomeException -> Snap ()
+exceptionCfg ex = do
+  writeBS "no non non !"
+
 appendHandler :: Snap ()
 appendHandler = do
     param <- getParam "appendparam"
-    case param of Just param' -> liftIO $ appendNginxVhost $ BS.unpack param'
-    	          Nothing -> writeBS "no no no !"
-    maybe (writeBS "must specify echo/param in URL")
-          writeBS param
-
-invalidJson :: SomeException -> Snap ()
-invalidJson ex = do
-  writeBS "param"
-  
-removeHandler :: Snap ()
-removeHandler = do 
-    param <- getParam "removeparam"
     case param of 
-      Just param' ->
-          liftIO $ removeNginxVhost $ BS.unpack param'
-    maybe (writeBS "must specify echo/param in URL")
-          writeBS param
+      Just param' -> C.catch (createConfig (BS.unpack param')) exceptionCfg
+    maybe (writeBS "must specify echo/param in URL") writeBS param
+
+removeHandler :: Snap ()
+removeHandler = do
+  param <- getParam "removeparam"
+  case  param of
+    Just param' ->
+      liftIO $ removeNginxVhost $ BS.unpack param'
+
+  maybe (writeBS "must specify echo/param in URL")
+    writeBS param
